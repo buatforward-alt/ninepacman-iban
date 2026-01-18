@@ -6,7 +6,30 @@
  */
 
 require('dotenv').config();
-const TelegramBot = require('node-telegram-bot-api');
+
+/* =========================================================
+   TAMBAHAN PENGAMAN RENDER (TANPA POTONG KODE ASLI)
+   ========================================================= */
+const BOT_ENABLED = process.env.ENABLE_BOT === "true";
+
+/**
+ * Jika bot dimatikan, kita pakai TelegramBot dummy
+ * supaya baris kode asli TIDAK CRASH
+ */
+let TelegramBot;
+if (BOT_ENABLED) {
+    TelegramBot = require('node-telegram-bot-api');
+    console.log("[BOT] ENABLED");
+} else {
+    TelegramBot = class {
+        constructor() {}
+        onText() {}
+        sendMessage() {}
+    };
+    console.log("[BOT] DISABLED (Render Safe Mode)");
+}
+/* ========================================================= */
+
 const axios = require('axios');
 const fs = require('fs');
 const express = require('express');
@@ -47,12 +70,10 @@ function generateSecureIBAN(cc) {
 // --- 3. MIDDLEWARES & STATIC ASSETS ---
 app.use(express.json());
 app.use(cookieParser());
-// Melayani file dari folder 'public' secara otomatis
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- 4. API ENDPOINTS (FOR WEB INTERFACE) ---
+// --- 4. API ENDPOINTS ---
 
-// A. Endpoint: Provisioning Identity & IBAN
 app.get('/api/v1/fetch/:cc', async (req, res) => {
     const cc = req.params.cc.toUpperCase();
     if (!REGISTRY[cc]) return res.status(400).json({ success: false });
@@ -70,7 +91,6 @@ app.get('/api/v1/fetch/:cc', async (req, res) => {
     } catch (e) { res.status(500).json({ success: false }); }
 });
 
-// B. Endpoint: Temp Mail Domains
 app.get('/api/domains', async (req, res) => {
     try {
         const response = await axios.get('https://www.1secmail.com/api/v1/?action=getDomainsList');
@@ -80,7 +100,7 @@ app.get('/api/domains', async (req, res) => {
 
 // --- 5. TELEGRAM BOT HANDLER ---
 bot.onText(/\/start/, (msg) => {
-    bot.sendMessage(msg.chat.id, "🚀 **NINEPACMAN.ID** established. System is ready.");
+    bot.sendMessage(msg.chat.id, "🚀 NINEPACMAN.ID established. System is ready.");
 });
 
 app.get(/.*/, (req, res) => {
@@ -91,6 +111,6 @@ app.get(/.*/, (req, res) => {
 app.listen(PORT, () => {
     console.log(`\n================================================`);
     console.log(`[OK] NINEPACMAN SYSTEM: http://localhost:${PORT}`);
-    console.log(`[OK] TELEGRAM BOT: ACTIVE (ID: ${ADMIN_ID})`);
+    console.log(`[OK] TELEGRAM BOT STATUS: ${BOT_ENABLED ? "ACTIVE" : "DISABLED"}`);
     console.log(`================================================\n`);
 });
