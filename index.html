@@ -3,8 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NinePacman.ID - Telegram Verified System</title>
+    <meta name="theme-color" content="#00d2ff">
+    <meta name="description" content="NinePacman.ID - Verified Identity Generator System">
+    <title>NinePacman.ID - Verified System</title>
+    
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk5pbmVQYWNtYW4uSUQgUHJlbWl1bSIsCiAgInNob3J0X25hbWUiOiAiTmluZVBhY21hbiIsCiAgInN0YXJ0X3VybCI6ICIuL2luZGV4Lmh0bWwiLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYTBhMGEiLAogICJ0aGVtZV9jb2xvciI6ICIjMDBkMmZmIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAibG9nby5wbmciLAogICAgICAic2l6ZXMiOiAiMTkyeDE5MiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIKICAgIH0KICBdCn0=">
+    
     <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         :root { 
@@ -25,9 +32,10 @@
             margin: 0;
             padding: 10px;
             min-height: 100vh;
+            overscroll-behavior-y: none;
         }
 
-        .container { max-width: 750px; margin: auto; position: relative; z-index: 10; }
+        .container { max-width: 750px; margin: auto; position: relative; z-index: 10; padding-bottom: 50px; }
         
         .card { 
             background: var(--card); 
@@ -53,12 +61,11 @@
         .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); margin-top: 10px; }
         .btn-red { background: #ff4444; color: #fff; margin-top: 10px; }
 
-        /* Gaya Tombol Pilih Metode (Sesuai Gambar User) */
         .btn-method { background: #1e88e5; color: white; margin-bottom: 10px; padding: 15px; font-size: 14px; width: 100%; }
         .btn-method:hover { background: #1565c0; transform: translateY(-2px); }
         
         .hidden { display: none; }
-        .result-box { background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border-left: 3px solid var(--primary); font-family: 'Courier New', monospace; white-space: pre-wrap; margin-top: 15px; font-size: 13px; color: #fff; line-height: 1.8; }
+        .result-box { background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border-left: 3px solid var(--primary); font-family: 'Courier New', monospace; white-space: pre-wrap; margin-top: 15px; font-size: 13px; color: #fff; line-height: 1.8; word-break: break-all; }
         
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
         th { background: rgba(255,255,255,0.05); padding: 10px; text-align: left; color: var(--primary); }
@@ -180,12 +187,22 @@
             <div class="card">
                 <h2 style="color: var(--primary);">👥 REGISTERED USERS</h2>
                 <div style="max-height: 200px; overflow-y: auto; background: #000; border-radius: 8px;">
-                    <table>
+                    <table id="user-table-el">
                         <thead><tr><th>TELE ID</th><th>STATUS</th><th>ACTION</th></tr></thead>
                         <tbody id="user-list"></tbody>
                     </table>
                 </div>
                 <button class="btn-red" onclick="resetAll()">🗑️ RESET ALL DATABASE</button>
+            </div>
+            
+            <div class="card">
+                <h2 style="color: var(--primary);">🎟️ ACTIVE VOUCHERS</h2>
+                <div style="max-height: 200px; overflow-y: auto; background: #000; border-radius: 8px;">
+                    <table>
+                        <thead><tr><th>CODE</th><th>DAY</th><th>STAT</th><th>USED</th></tr></thead>
+                        <tbody id="voc-table"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -205,6 +222,15 @@
     const getDB = (k) => JSON.parse(localStorage.getItem(k) || '{}');
     const setDB = (k, v) => localStorage.setItem(k, JSON.stringify(v));
     let timerInterval = null, authMode = 'login', currentOTP = null, tempId = null, tempPass = null, isResetMode = false;
+
+    // Service Worker Registration for PWA
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./service.js')
+                .then(reg => console.log('ServiceWorker registered'))
+                .catch(err => console.log('ServiceWorker failed: ', err));
+        });
+    }
 
     function startAuth(method) {
         document.getElementById('method-panel').classList.add('hidden');
@@ -264,7 +290,7 @@
                     document.getElementById('otp-field').classList.remove('hidden');
                     document.getElementById('reset-new-pass').classList.remove('hidden');
                     document.getElementById('auth-btn').innerText = 'KONFIRMASI RESET';
-                } catch (e) { alert("Gagal kirim OTP!"); }
+                } catch (e) { alert("Gagal kirim OTP! Pastikan bot sudah distart."); }
             }
             return;
         }
@@ -308,7 +334,7 @@
                     document.getElementById('login-fields').classList.add('hidden');
                     document.getElementById('otp-field').classList.remove('hidden');
                     document.getElementById('auth-btn').innerText = 'VERIFIKASI OTP';
-                } catch (e) { alert("Gagal kirim OTP!"); }
+                } catch (e) { alert("Gagal kirim OTP! Pastikan Anda sudah chat ke bot."); }
             }
         }
     }
@@ -322,9 +348,9 @@
             const cfg = COUNTRY_CFG[cc];
             const api = await axios.get(`https://randomuser.me/api/?nat=${cfg.nat}`);
             const u = api.data.results[0];
-            // OUTPUT DATA LENGKAP SESUAI REQUEST
-            resBox.innerHTML = `✅ <b>DATA GENERATED</b>\n━━━━━━━━━━━━━━━━━━━━\n<b>NEGARA</b> : ${cfg.name}\n<b>NAMA</b>   : ${u.name.first} ${u.name.last}\n<b>STREET</b> : ${u.location.street.name} ${u.location.street.number}\n<b>CITY</b>   : ${u.location.city}\n<b>STATE</b>  : ${u.location.state}\n<b>ZIP</b>    : ${u.location.postcode}\n<b>PHONE</b>  : ${u.phone}\n<b>IBAN</b>   : <span style="color:var(--primary)">${calcIBAN(cc)}</span>\n━━━━━━━━━━━━━━━━━━━━`;
-        } catch (e) { resBox.innerText = "❌ Database error!"; }
+            const iban = calcIBAN(cc);
+            resBox.innerHTML = `✅ <b>DATA GENERATED</b>\n━━━━━━━━━━━━━━━━━━━━\n<b>NEGARA</b> : ${cfg.name}\n<b>NAMA</b>   : ${u.name.first} ${u.name.last}\n<b>STREET</b> : ${u.location.street.name} ${u.location.street.number}\n<b>CITY</b>   : ${u.location.city}\n<b>STATE</b>  : ${u.location.state}\n<b>ZIP</b>    : ${u.location.postcode}\n<b>PHONE</b>  : ${u.phone}\n<b>IBAN</b>   : <span style="color:var(--primary)">${iban}</span>\n━━━━━━━━━━━━━━━━━━━━`;
+        } catch (e) { resBox.innerText = "❌ Network error or API limit!"; }
     }
 
     function calcIBAN(cc) {
@@ -418,7 +444,7 @@
     function adminCreate() {
         const d = document.getElementById('a-days').value, q = document.getElementById('a-qty').value, vocs = getDB('vouchers');
         for(let i=0; i<q; i++) vocs[`GENPAC-${Math.random().toString(36).substr(2,8).toUpperCase()}`] = { days: d, status: 'available', usedBy: '-' };
-        setDB('vouchers', vocs); renderVoc(); alert("Berhasil!");
+        setDB('vouchers', vocs); renderVoc(); alert("Voucher Generated!");
     }
 
     function renderVoc() {
@@ -428,6 +454,13 @@
             Object.keys(vocs).reverse().forEach(k => {
                 body.innerHTML += `<tr><td>${k}</td><td>${vocs[k].days}d</td><td style="color:${vocs[k].status==='available'?'#28a745':'#ff4444'}">${vocs[k].status}</td><td>${vocs[k].usedBy}</td></tr>`;
             });
+        }
+    }
+
+    function resetAll() {
+        if(confirm("Yakin hapus semua database?")) {
+            localStorage.clear();
+            location.reload();
         }
     }
 
@@ -450,7 +483,7 @@
                 setDB('accounts', accs);
             }
             setDB('vouchers', vocs); alert("PREMIUM AKTIF!"); syncStatus();
-        } else alert("Voucher Salah!");
+        } else alert("Voucher Salah/Sudah Dipakai!");
     }
 
     window.onload = showMain;
